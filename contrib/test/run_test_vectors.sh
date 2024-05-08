@@ -27,6 +27,7 @@ else
 fi
 
 find dump/test-vectors/instr/fixtures -type f -name '*.fix' -exec ./$OBJDIR/unit-test/test_exec_instr {} + > $LOG_PATH/test_vectors_exec 2>&1
+find dump/test-vectors/elf_loader/fixtures -type f -name '*.fix' -exec ./$OBJDIR/unit-test/test_elf_loader {} + >> $LOG_PATH/test_vectors_exec 2>&1
 failed=`grep -w FAIL $LOG_PATH/test_vectors_exec | wc -l`
 echo "Total failed: $failed"
 
