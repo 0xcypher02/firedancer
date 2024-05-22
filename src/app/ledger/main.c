@@ -21,11 +21,11 @@
 #include "../../ballet/base58/fd_base58.h"
 #include "../../flamenco/types/fd_solana_block.pb.h"
 #include "../../flamenco/runtime/context/fd_capture_ctx.h"
-#include "../../flamenco/runtime/fd_snapshot_loader.h"
 #include "../../flamenco/runtime/fd_blockstore.h"
 #include "../../flamenco/runtime/program/fd_builtin_programs.h"
 #include "../../flamenco/shredcap/fd_shredcap.h"
 #include "../../flamenco/runtime/program/fd_bpf_program_util.h"
+#include "../../flamenco/snapshot/fd_snapshot.h"
 
 #pragma GCC diagnostic ignored "-Wformat"
 #pragma GCC diagnostic ignored "-Wformat-extra-args"
@@ -43,7 +43,7 @@ static void usage( char const * progname ) {
   fprintf( stderr, " --checkpt <checkpoint file>                checkpoint wksp into file after execution\n" ); /* Capture context tool for runtime checkpoints */
   fprintf( stderr, " --checkpt-freq <ulong>                     checkpoint frequency\n" );
   fprintf( stderr, " --checkpt-mismatch <int>                   checkpoint on mismatch at last rooted slot\n" );
-  fprintf( stderr, " --checkpt-path <checkpoint path>           path to checkpoint\n" ); 
+  fprintf( stderr, " --checkpt-path <checkpoint path>           path to checkpoint\n" );
   fprintf( stderr, " --copy-txn-status <int>                    copy transaction status from rocksdb into blockstore\n" );
   fprintf( stderr, " --dump-insn-output-dir <insn output dir>   dump instructions output directory\n" ); /* Capture ctx tool for insn dumping*/
   fprintf( stderr, " --dump-insn-sig-filter <insn sig filter>   dump instructions signature filter\n" );

@@ -1,4 +1,4 @@
-#include "fd_snapshot_load.h"
+#include "fd_snapshot_istream.h"
 #include <errno.h>
 
 /* fd_io_istream_zstd_t ***********************************************/
