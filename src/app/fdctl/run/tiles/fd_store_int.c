@@ -27,6 +27,8 @@
 #include "../../../../disco/keyguard/fd_keyload.h"
 #include "../../../../flamenco/leaders/fd_leaders.h"
 #include "../../../../flamenco/runtime/fd_runtime.h"
+#include "../../../../disco/metrics/generated/fd_metrics_storei.h"
+#include "../../../../disco/metrics/fd_metrics.h"
 
 #define SHRED_IN_IDX    0
 #define REPAIR_IN_IDX   1
@@ -327,13 +329,19 @@ fd_store_tile_slot_prepare( fd_store_tile_ctx_t * ctx,
       fd_runtime_block_prepare( block_data, block->data_sz, fd_scratch_virtual(), &block_info );
 
       FD_LOG_DEBUG(( "block prepared - slot: %lu", slot ));
+      ulong caught_up = slot > ctx->store->first_turbine_slot;
       FD_LOG_NOTICE(( "first turbine: %lu, current received turbine: %lu, behind: %lu current "
-                      "executed: %lu, caught up: %d",
+                      "executed: %lu, caught up: %lu",
                       ctx->store->first_turbine_slot,
                       ctx->store->curr_turbine_slot,
                       ctx->store->curr_turbine_slot - slot,
                       slot,
-                      slot > ctx->store->first_turbine_slot ) );
+                      caught_up ) );
+
+      FD_MGAUGE_SET( REPLAY, SLOT, ctx->store->curr_turbine_slot );
+      FD_MGAUGE_SET( REPLAY, CAUGHT_UP, caught_up );
+      FD_MGAUGE_SET( REPLAY, BEHIND, ctx->store->curr_turbine_slot - slot );
+
       fd_txn_p_t * txns = fd_type_pun( out_buf );
       ulong txn_cnt = fd_runtime_block_collect_txns( &block_info, txns );
 

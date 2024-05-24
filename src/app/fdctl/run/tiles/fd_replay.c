@@ -5,6 +5,8 @@
 #include "generated/replay_seccomp.h"
 #include "../../../../util/fd_util.h"
 #include "../../../../util/tile/fd_tile_private.h"
+#include "../../../../disco/metrics/fd_metrics.h"
+#include "../../../../disco/metrics/generated/fd_metrics_replay.h"
 #include "../../../../disco/shred/fd_stake_ci.h"
 #include "../../../../disco/topo/fd_pod_format.h"
 #include "../../../../disco/tvu/fd_replay.h"
@@ -399,16 +401,22 @@ read_snapshot( void * _ctx, char const * snapshotfile, char const * incremental 
     /* Already loaded the main snapshot when we initialized funk */
     if ( strlen(incremental) > 0 ) {
       ctx->epoch_ctx = fd_exec_epoch_ctx_join( fd_exec_epoch_ctx_new( ctx->epoch_ctx_mem, 2000000UL ) );
+      FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_BEGIN, 1 );
       fd_snapshot_load(incremental, ctx->slot_ctx, false, false, FD_SNAPSHOT_TYPE_INCREMENTAL );
+      FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_END, 1 );
     } else {
       fd_runtime_recover_banks( ctx->slot_ctx, 0 );
     }
 
   } else {
+    FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_SNAPSHOT_BEGIN, 1 );
     fd_snapshot_load(snapshot, ctx->slot_ctx, false, false, FD_SNAPSHOT_TYPE_FULL );
+    FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_SNAPSHOT_END, 1 );
     if ( strlen(incremental) > 0 ) {
       ctx->epoch_ctx = fd_exec_epoch_ctx_join( fd_exec_epoch_ctx_new( ctx->epoch_ctx_mem, 2000000UL ) );
+      FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_BEGIN, 1 );
       fd_snapshot_load(incremental, ctx->slot_ctx, false, false, FD_SNAPSHOT_TYPE_INCREMENTAL );
+      FD_MCNT_INC( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_END, 1 );
     }
   }
 
@@ -521,6 +529,10 @@ after_credit( void *             _ctx,
 static void
 during_housekeeping( void * _ctx ) {
   fd_replay_tile_ctx_t * ctx = (fd_replay_tile_ctx_t *)_ctx;
+  FD_MCNT_SET( REPLAY, SNAPSHOT_STATUS_SNAPSHOT_BEGIN, 0 );
+  FD_MCNT_SET( REPLAY, SNAPSHOT_STATUS_SNAPSHOT_END,   0 );
+  FD_MCNT_SET( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_BEGIN, 0 );
+  FD_MCNT_SET( REPLAY, SNAPSHOT_STATUS_INCREMENTAL_END,   0 );
   (void)ctx;
 }
 

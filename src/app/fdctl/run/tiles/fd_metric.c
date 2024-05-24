@@ -265,6 +265,13 @@ prometheus_print( fd_topo_t * topo,
   if( FD_UNLIKELY( result<0 ) ) return result;
   PRINT( "\n" );
   result = prometheus_print1( topo, out, out_len, "store", FD_METRICS_STORE_TOTAL, FD_METRICS_STORE, PRINT_TILE );
+#ifdef FD_HAS_NO_SOLANA
+  PRINT( "\n" );
+  result = prometheus_print1( topo, out, out_len, "replay", FD_METRICS_REPLAY_TOTAL, FD_METRICS_REPLAY, PRINT_TILE );
+  PRINT( "\n" );
+  result = prometheus_print1( topo, out, out_len, "storei", FD_METRICS_STOREI_TOTAL, FD_METRICS_STOREI, PRINT_TILE );
+#endif
+
   if( FD_UNLIKELY( result<0 ) ) return result;
 
   /* Now backfill Content-Length */
