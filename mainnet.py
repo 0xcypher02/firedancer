@@ -114,12 +114,13 @@ def copy_data_to_upload_dir(data_dir, new_dir, upload_dir='~/upload-to-gcs'):
     for item in os.listdir(data_dir):
         print(item)
         if os.path.join(data_dir, item) != new_dir:
-            if os.path.isdir(item):
-                print(f'copying directory {item}')
-                shutil.copytree(os.path.join(data_dir, item), os.path.join(new_dir, item))
-            else:
-                print(f'copying file {item}')
-                shutil.copy2(os.path.join(data_dir, item), new_dir)
+            shutil.move(os.path.join(data_dir, item), new_dir)
+            # if os.path.isdir(item):
+            #     print(f'copying directory {item}')
+            #     shutil.copytree(os.path.join(data_dir, item), os.path.join(new_dir, item))
+            # else:
+            #     print(f'copying file {item}')
+            #     shutil.copy2(os.path.join(data_dir, item), new_dir)
 
     # Move the new directory to the desired location
     destination = os.path.expanduser(upload_dir)
