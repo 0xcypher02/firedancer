@@ -435,7 +435,7 @@ init_after_snapshot( fd_replay_tile_ctx_t * ctx ) {
   fd_runtime_update_leaders( ctx->slot_ctx, ctx->slot_ctx->slot_bank.slot );
   fd_calculate_epoch_accounts_hash_values( ctx->slot_ctx );
   fd_funk_start_write( ctx->slot_ctx->acc_mgr->funk );
-  fd_bpf_scan_and_create_bpf_program_cache_entry( ctx->slot_ctx, ctx->slot_ctx->funk_txn );
+  fd_bpf_scan_and_create_bpf_program_cache_entry_tpool( ctx->slot_ctx, ctx->slot_ctx->funk_txn, ctx->tpool, ctx->max_workers );
   fd_funk_end_write( ctx->slot_ctx->acc_mgr->funk );
 }
 

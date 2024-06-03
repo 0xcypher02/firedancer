@@ -1,5 +1,7 @@
 #!/bin/bash -f
 
+set -euxo pipefail
+
 # We determine these values by
 #  1) Checkout https://github.com/firedancer-io/solana.git
 #  2) switch to the debug branch
