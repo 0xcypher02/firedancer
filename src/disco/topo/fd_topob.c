@@ -319,7 +319,7 @@ validate( fd_topo_t const * topo ) {
     if( topo->tiles[i].out_link_id_primary != ULONG_MAX ) {
       for( ulong j=0UL; j<topo->tiles[ i ].out_cnt; j++ ) {
         if( FD_UNLIKELY( topo->tiles[ i ].out_link_id[ j ] == topo->tiles[ i ].out_link_id_primary ) )
-          FD_LOG_ERR(( "tile %lu has out link %lu same as primary out", i, topo->tiles[ i ].out_link_id[ j ] ));
+          FD_LOG_ERR(( "tile %lu (%s) has out link %lu same as primary out", i, topo->tiles[ i ].name, topo->tiles[ i ].out_link_id[ j ] ));
       }
     }
   }

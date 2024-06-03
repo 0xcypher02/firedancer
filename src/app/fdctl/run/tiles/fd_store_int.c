@@ -7,6 +7,7 @@
 #include "../../../../flamenco/repair/fd_repair.h"
 #include "../../../../flamenco/runtime/fd_blockstore.h"
 #include "../../../../flamenco/leaders/fd_leaders.h"
+#include "../../../../flamenco/fd_flamenco.h"
 #include "../../../../util/fd_util.h"
 
 #include <unistd.h>
@@ -26,6 +27,9 @@
 #include "../../../../disco/keyguard/fd_keyload.h"
 #include "../../../../flamenco/leaders/fd_leaders.h"
 #include "../../../../flamenco/runtime/fd_runtime.h"
+
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
 
 #define SHRED_IN_IDX    0
 #define REPAIR_IN_IDX   1
@@ -245,18 +249,17 @@ fd_store_tile_slot_prepare( fd_store_tile_ctx_t * ctx,
   // FIXME: I dont think that this `ctx->store->curr_turbine_slot >= slot`
   // check works on fork switches to lower slot numbers. Use a given fork height
   // instead
-
-  if( ctx->store->curr_turbine_slot >= slot
-      && memcmp( ctx->identity_key, slot_leader, sizeof(fd_pubkey_t) ) == 0 ) {
-    if( store_slot_prepare_mode == FD_STORE_SLOT_PREPARE_CONTINUE ) {
-      fd_block_t * block = fd_blockstore_block_query( ctx->blockstore, slot );
-      if( FD_LIKELY( block ) ) {
-        block->flags = fd_uchar_set_bit( block->flags, FD_BLOCK_FLAG_PROCESSED );
-      }
-    } else {
-      return;
-    }
-  }
+  // if( ctx->store->curr_turbine_slot >= slot
+  //     && memcmp( ctx->identity_key, slot_leader, sizeof(fd_pubkey_t) ) == 0 ) {
+  //   if( store_slot_prepare_mode == FD_STORE_SLOT_PREPARE_CONTINUE ) {
+  //     fd_block_t * block = fd_blockstore_block_query( ctx->blockstore, slot );
+  //     if( FD_LIKELY( block ) ) {
+  //       block->flags = fd_uchar_set_bit( block->flags, FD_BLOCK_FLAG_PROCESSED );
+  //     }
+  //   } else {
+  //     return;
+  //   }
+  // }
 
   ulong repair_req_cnt = 0;
   switch( store_slot_prepare_mode ) {
@@ -322,7 +325,7 @@ fd_store_tile_slot_prepare( fd_store_tile_ctx_t * ctx,
       fd_block_info_t block_info;
       fd_runtime_block_prepare( block_data, block->data_sz, fd_scratch_virtual(), &block_info );
 
-      FD_LOG_DEBUG(( "block prepared - slot: %lu", slot ));
+      FD_LOG_INFO(( "block prepared - slot: %lu, mblks: %lu, blockhash: %32J", slot, block_info.microblock_cnt, block_hash->uc ));
       FD_LOG_NOTICE(( "first turbine: %lu, current received turbine: %lu, behind: %lu current "
                       "executed: %lu, caught up: %d",
                       ctx->store->first_turbine_slot,
@@ -332,10 +335,18 @@ fd_store_tile_slot_prepare( fd_store_tile_ctx_t * ctx,
                       slot > ctx->store->first_turbine_slot ) );
       fd_txn_p_t * txns = fd_type_pun( out_buf );
       ulong txn_cnt = fd_runtime_block_collect_txns( &block_info, txns );
-
+ 
       ulong tspub = fd_frag_meta_ts_comp( fd_tickcount() );
       int caught_up_flag = (ctx->store->curr_turbine_slot - slot)==0 ? 0 : REPLAY_FLAG_CATCHING_UP;
-      ulong replay_sig = fd_disco_replay_sig( slot, REPLAY_FLAG_FINISHED_BLOCK | caught_up_flag );
+      ulong replay_sig = fd_disco_replay_sig( slot, REPLAY_FLAG_FINISHED_BLOCK | REPLAY_FLAG_MICROBLOCK | caught_up_flag );
+
+      if( ( ctx->store->curr_turbine_slot - slot )==0 
+          && memcmp( ctx->identity_key, slot_leader, sizeof(fd_pubkey_t) ) == 0 ) {
+        /* if is caught up and is leader */
+        txn_cnt = 0;
+        replay_sig = fd_disco_replay_sig( slot, REPLAY_FLAG_FINISHED_BLOCK );
+      }
+
       ulong out_sz = sizeof(ulong) + sizeof(fd_hash_t) + ( txn_cnt * sizeof(fd_txn_p_t) );
       fd_mcache_publish( ctx->replay_out_mcache, ctx->replay_out_depth, ctx->replay_out_seq, replay_sig, ctx->replay_out_chunk, txn_cnt, 0UL, tsorig, tspub );
       ctx->replay_out_seq   = fd_seq_inc( ctx->replay_out_seq, 1UL );
@@ -383,6 +394,8 @@ void
 unprivileged_init( fd_topo_t *      topo,
                    fd_topo_tile_t * tile,
                    void *           scratch ) {
+  fd_flamenco_boot( NULL, NULL );
+
   if( FD_UNLIKELY( tile->in_cnt != 3 ||
                    strcmp( topo->links[ tile->in_link_id[ SHRED_IN_IDX     ] ].name, "shred_storei" )    ||
                    strcmp( topo->links[ tile->in_link_id[ REPAIR_IN_IDX ] ].name, "repair_store" ) ) )
@@ -424,6 +437,17 @@ unprivileged_init( fd_topo_t *      topo,
     FD_LOG_ERR(( "no blocktore workspace" ));
   }
 
+  /* Prevent blockstore from being created until we know the shred version */
+  ulong expected_shred_version = tile->shred.expected_shred_version;
+  if( FD_LIKELY( !expected_shred_version ) ) {
+    ulong busy_obj_id = fd_pod_query_ulong( topo->props, "poh_shred", ULONG_MAX );
+    FD_TEST( busy_obj_id!=ULONG_MAX );
+    ulong * gossip_shred_version = fd_fseq_join( fd_topo_obj_laddr( topo, busy_obj_id ) );
+    FD_LOG_INFO(( "waiting for shred version to be determined via gossip." ));
+    do {
+      expected_shred_version = FD_VOLATILE_CONST( *gossip_shred_version );
+    } while( expected_shred_version==ULONG_MAX );
+  }
 
   fd_blockstore_t *        blockstore = NULL;
   void * shmem = fd_wksp_alloc_laddr(

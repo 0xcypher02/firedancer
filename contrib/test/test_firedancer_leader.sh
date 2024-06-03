@@ -55,10 +55,12 @@ echo "
 [log]
     path = \"fddev.log\"
     level_stderr = \"INFO\"
+    level_flush = \"ERR\"
 [development]
     topology = \"firedancer\"
 [consensus]
     identity_path = \"fd-identity-keypair.json\"
 " > fddev.toml
 
-sudo gdb --args $FD_DIR/build/native/$CC/bin/fddev --log-path $(readlink -f fddev.log) --config $(readlink -f fddev.toml) --no-solana --no-sandbox --no-clone
+
+sudo gdb -ex r --args $FD_DIR/build/native/$CC/bin/fddev --log-path $(readlink -f fddev.log) --config $(readlink -f fddev.toml) --no-solana --no-sandbox --no-clone

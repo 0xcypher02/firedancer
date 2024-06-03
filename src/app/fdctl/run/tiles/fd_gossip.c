@@ -42,6 +42,8 @@
    TODO: update */
 #define SCRATCH_DEPTH (16UL)
 
+static volatile ulong * fd_shred_version;
+
 static int
 fd_pubkey_eq( fd_pubkey_t const * key1, fd_pubkey_t const * key2 ) {
   return memcmp( key1->key, key2->key, sizeof(fd_pubkey_t) ) == 0;
@@ -222,26 +224,19 @@ gossip_deliver_fun( fd_crds_data_t * data, void * arg ) {
 
   if( fd_crds_data_is_vote( data ) ) {
     fd_gossip_vote_t const * gossip_vote = &data->inner.vote;
-    fd_txn_t * txn = gossip_vote->txn.txn;
 
     uchar * vote_txn_msg = fd_chunk_to_laddr( ctx->pack_out_mem, ctx->pack_out_chunk );
-    ulong vote_txn_sz    = fd_ulong_align_up( gossip_vote->txn.raw_sz, 2UL );
+    ulong vote_txn_sz    = gossip_vote->txn.raw_sz;
     memcpy( vote_txn_msg, gossip_vote->txn.raw, vote_txn_sz );
     vote_txn_msg += vote_txn_sz;
 
-    ulong txn_footprint = fd_txn_footprint(txn->instr_cnt, txn->addr_table_lookup_cnt);
-    memcpy( vote_txn_msg, txn, txn_footprint );
-    vote_txn_msg += txn_footprint;
+    FD_LOG_WARNING(("gossip_vote!"));
 
-    ushort payload_sz = (ushort)gossip_vote->txn.raw_sz;
-    *((ushort *)vote_txn_msg) = payload_sz;
-
-    ulong total_msg_sz = vote_txn_sz + txn_footprint + 2UL;
     ulong sig = 1UL; 
     fd_mcache_publish( ctx->pack_out_mcache, ctx->pack_out_depth, ctx->pack_out_seq, sig, ctx->pack_out_chunk,
-      total_msg_sz, 0UL, 0, 0 );
+      vote_txn_sz, 0UL, 0, 0 );
     ctx->pack_out_seq   = fd_seq_inc( ctx->pack_out_seq, 1UL );
-    ctx->pack_out_chunk = fd_dcache_compact_next( ctx->pack_out_chunk, total_msg_sz, ctx->pack_out_chunk0, ctx->pack_out_wmark );
+    ctx->pack_out_chunk = fd_dcache_compact_next( ctx->pack_out_chunk, vote_txn_sz, ctx->pack_out_chunk0, ctx->pack_out_wmark );
   } else if( fd_crds_data_is_contact_info_v1( data ) ) {
     fd_gossip_contact_info_v1_t const * contact_info = &data->inner.contact_info_v1;
     FD_LOG_DEBUG(("contact info v1 - ip: " FD_IP4_ADDR_FMT ", port: %u", FD_IP4_ADDR_FMT_ARGS( contact_info->gossip.addr.inner.ip4 ), contact_info->gossip.port ));
@@ -413,7 +408,11 @@ after_credit( void * _ctx,
       ctx->repair_contact_out_chunk = fd_dcache_compact_next( ctx->repair_contact_out_chunk, repair_contact_sz, ctx->repair_contact_out_chunk0, ctx->repair_contact_out_wmark );
     }
   }
-
+  
+  ushort shred_version = fd_gossip_get_shred_version( ctx->gossip );
+  if( shred_version!=0U ) {
+    *fd_shred_version = shred_version;
+  }
   fd_gossip_settime( ctx->gossip, now );
   fd_gossip_continue( ctx->gossip );
 }
@@ -511,9 +510,9 @@ unprivileged_init( fd_topo_t *      topo,
   ctx->gossip_config.my_addr       = ctx->gossip_my_addr;
   ctx->gossip_config.my_version = (fd_gossip_version_v2_t){
     .from = ctx->identity_public_key,
-    .major = 1337U,
-    .minor = 1337U,
-    .patch = 1337U,
+    .major = 42U,
+    .minor = 42U,
+    .patch = 42U,
     .commit = 0U,
     .has_commit = 0U,
     .feature_set = 0U,
@@ -596,6 +595,11 @@ unprivileged_init( fd_topo_t *      topo,
   if( FD_UNLIKELY( scratch_top>( (ulong)scratch + scratch_footprint( tile ) ) ) )
     FD_LOG_ERR(( "scratch overflow %lu %lu %lu", scratch_top - (ulong)scratch - scratch_footprint( tile ), scratch_top, (ulong)scratch + scratch_footprint( tile ) ));
 
+  ulong poh_shred_obj_id = fd_pod_query_ulong( topo->props, "poh_shred", ULONG_MAX );
+  FD_TEST( poh_shred_obj_id!=ULONG_MAX );
+
+  fd_shred_version = fd_fseq_join( fd_topo_obj_laddr( topo, poh_shred_obj_id ) );
+  FD_TEST( fd_shred_version );
 }
 
 static ulong

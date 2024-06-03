@@ -30,8 +30,8 @@ GENESIS_OUTPUT=$(solana-genesis \
     --bootstrap-validator-lamports 11000000000000000 \
     --bootstrap-validator-stake-lamports 10000000000000000 \
     --faucet-pubkey test-ledger/faucet-keypair.json --faucet-lamports 10000000000000000 \
-    --slots-per-epoch 1000 \
-    --hashes-per-tick 1000 \
+    --slots-per-epoch 200 \
+    --hashes-per-tick 128 \
     --ticks-per-slot 64)
 
 # Start validator
@@ -42,7 +42,7 @@ GENESIS_HASH=$(echo $GENESIS_OUTPUT | grep -o -P '(?<=Genesis hash:).*(?=Shred v
 SHRED_VERSION=$(echo $GENESIS_OUTPUT | grep -o -P '(?<=Shred version:).*(?=Ticks per slot:)' | xargs)
 _PRIMARY_INTERFACE=$(ip route show default | awk '/default/ {print $5}')
 
-RUST_LOG=info solana-validator \
+RUST_LOG=debug solana-validator \
     --identity test-ledger/validator-keypair.json \
     --ledger test-ledger \
     --limit-ledger-size 100000000 \
@@ -61,4 +61,4 @@ RUST_LOG=info solana-validator \
     --gossip-host $PRIMARY_IP \
     --full-rpc-api \
     --allow-private-addr \
-    --log -
+    --log test-ledger/validator.log

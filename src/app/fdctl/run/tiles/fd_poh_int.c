@@ -52,6 +52,7 @@ typedef struct {
   fd_microblock_trailer_t * _microblock_trailer;
 
   int is_initialized;
+  int recently_reset;
 
   fd_poh_tile_in_ctx_t bank_in[ 32 ];
   fd_poh_tile_in_ctx_t stake_in;
@@ -105,7 +106,7 @@ fd_poh_initialize( fd_poh_ctx_t * ctx,
 static void
 publish_became_leader( fd_poh_ctx_t * ctx,
                        ulong          slot ) {
-  fd_poh_tile_publish_became_leader( ctx->poh_tile_ctx, (void const *)ctx->poh_tile_ctx->reset_slot_hashcnt, slot );
+  fd_poh_tile_publish_became_leader( ctx->poh_tile_ctx, (void const *)( fd_poh_tile_reset_slot( ctx->poh_tile_ctx )-1UL ), slot );
 }
 
 /* The PoH tile knows when it should become leader by waiting for its
@@ -149,6 +150,7 @@ fd_poh_begin_leader( fd_poh_ctx_t * ctx,
 
 void
 no_longer_leader( fd_poh_ctx_t * ctx ) {
+  ctx->recently_reset = 0;
   fd_poh_tile_no_longer_leader( ctx->poh_tile_ctx );
   fd_poh_signal_leader_change( ctx );
 }
@@ -162,7 +164,6 @@ fd_poh_reset( fd_poh_ctx_t * ctx,
               ulong         completed_bank_slot, /* The slot that successfully produced a block */
               uchar const * reset_blockhash      /* Thsh of the e halast tick in the produced block */ ) {
   int leader_before_reset = fd_poh_tile_reset( ctx->poh_tile_ctx, completed_bank_slot, reset_blockhash );
-  
   /* No longer have a leader bank if we are reset. Replay stage will
     call back again to give us a new one if we should become leader
     for the reset slot.
@@ -172,6 +173,7 @@ fd_poh_reset( fd_poh_ctx_t * ctx,
   if( FD_UNLIKELY( leader_before_reset ) ) {
     no_longer_leader( ctx );
   }
+  ctx->recently_reset = 1;
 }
 
 FD_FN_CONST static inline ulong
@@ -202,7 +204,7 @@ after_credit( void *             _ctx,
     return;
   }
 
-  if( FD_LIKELY( ctx->poh_tile_ctx->current_leader_slot==ULONG_MAX ) ) {
+  if( FD_LIKELY( ctx->poh_tile_ctx->current_leader_slot==ULONG_MAX && ctx->recently_reset ) ) {
     /* We are not leader, but we should check if we have reached a leader slot! */
     ulong leader_slot = FD_SLOT_NULL;
     ulong reset_slot = FD_SLOT_NULL;
@@ -324,8 +326,9 @@ during_frag( void * _ctx,
       FD_LOG_ERR(( "chunk %lu %lu corrupt, not in range [%lu,%lu]", chunk, sz, ctx->bank_in[ in_idx ].chunk0, ctx->bank_in[ in_idx ].wmark ));
 
     if( !ctx->is_initialized && fd_disco_replay_sig_flags( sig )==REPLAY_FLAG_INIT ) {
+      FD_LOG_INFO(( "init msg rx" ));
       fd_poh_init_msg_t * init_msg = (fd_poh_init_msg_t *)fd_chunk_to_laddr( ctx->bank_in[ in_idx ].mem, chunk );
-      fd_poh_initialize( ctx, init_msg->hashcnt_duration_ns, init_msg->hashcnt_per_tick, init_msg->ticks_per_slot, init_msg->tick_height, init_msg->last_entry_hash);
+      fd_poh_initialize( ctx, init_msg->hashcnt_duration_ns, init_msg->hashcnt_per_tick, init_msg->ticks_per_slot, init_msg->tick_height, init_msg->last_entry_hash );
       *opt_filter = 1;
       return;
     }
@@ -381,15 +384,16 @@ after_frag( void *             _ctx,
     ulong current_slot = fd_poh_tile_get_slot( ctx->poh_tile_ctx );
     ulong leader_slot = fd_poh_tile_get_next_leader_slot( ctx->poh_tile_ctx );
     if( FD_UNLIKELY( target_slot!=leader_slot || target_slot!=current_slot ) )
-      FD_LOG_ERR(( "packed too early or late target_slot=%lu, current_slot=%lu", target_slot, current_slot ));
+      FD_LOG_ERR(( "packed too early or late target_slot=%lu, current_slot=%lu, leader_slot=%lu", target_slot, current_slot, leader_slot ));
 
     FD_TEST( ctx->poh_tile_ctx->current_leader_slot!=FD_SLOT_NULL );
     FD_TEST( ctx->poh_tile_ctx->microblocks_lower_bound<ctx->poh_tile_ctx->max_microblocks_per_slot );
     ctx->poh_tile_ctx->microblocks_lower_bound += 1UL;
 
-    ulong txn_cnt = (*opt_sz-sizeof(fd_microblock_trailer_t))/sizeof(fd_txn_p_t);
+    ulong txn_cnt = *opt_sz;
     fd_txn_p_t * txns = (fd_txn_p_t *)(ctx->_txns);
     ulong executed_txn_cnt = 0UL;
+    FD_LOG_INFO(( "rx packed mblk - target_slot: %lu, txn_cnt: %lu", target_slot, txn_cnt ));
     for( ulong i=0; i<txn_cnt; i++ ) { executed_txn_cnt += !!(txns[ i ].flags & FD_TXN_P_FLAGS_EXECUTE_SUCCESS); }
 
     /* We don't publish transactions that fail to execute.  If all the
@@ -400,7 +404,7 @@ after_frag( void *             _ctx,
 
     ulong hashcnt_delta = fd_poh_tile_mixin( ctx->poh_tile_ctx, ctx->_microblock_trailer->hash );
 
-    /* The hashing loop above will never leave us exactly one away from
+    /* The hashing loop above will never leave us exactly one away from 
       crossing a tick boundary, so this increment will never cause the
       current tick (or the slot) to change, except in low power mode
       for development, in which case we do need to register the tick
@@ -454,8 +458,9 @@ unprivileged_init( fd_topo_t *      topo,
 
   // TODO: scratch alloc needs fixing!
   fd_poh_tile_unprivileged_init( topo, tile, ctx->poh_tile_ctx );
-
+ 
   ctx->is_initialized = 0;
+  ctx->recently_reset = 0;
   ctx->bank_cnt = tile->in_cnt-2UL;
   ctx->stake_in_idx = tile->in_cnt-2UL;
   ctx->pack_in_idx = tile->in_cnt-1UL;

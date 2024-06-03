@@ -465,7 +465,7 @@ send_shred( fd_shred_ctx_t *      ctx,
             fd_shred_dest_idx_t   dest_idx,
             ulong                 tsorig ) {
   fd_shred_dest_weighted_t * dest = fd_shred_dest_idx_to_dest( sdest, dest_idx );
-
+  FD_LOG_INFO(( "sending shred - dest: " FD_IP4_ADDR_FMT ":%u, shred_version: %u", FD_IP4_ADDR_FMT_ARGS(dest->ip4), dest->port, shred->version ));
   if( FD_UNLIKELY( !dest->ip4 ) ) return;
 
   uchar * packet = fd_chunk_to_laddr( ctx->net_out_mem, ctx->net_out_chunk );

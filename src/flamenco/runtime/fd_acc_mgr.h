@@ -231,7 +231,7 @@ fd_acc_mgr_modify( fd_acc_mgr_t *          acc_mgr,
                    int                     do_create,
                    ulong                   min_data_sz,
                    fd_borrowed_account_t * account );
-
+ 
 int
 fd_acc_mgr_save( fd_acc_mgr_t *          acc_mgr,
                  fd_borrowed_account_t * account );
