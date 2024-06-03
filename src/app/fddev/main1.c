@@ -14,12 +14,14 @@ extern configure_stage_t netns;
 extern configure_stage_t genesis;
 extern configure_stage_t blockstore;
 extern configure_stage_t keys;
+extern configure_stage_t devsysctl;
 
 configure_stage_t * STAGES[ CONFIGURE_STAGE_COUNT ] = {
   &_kill,
   &netns,
   &hugetlbfs,
   &sysctl,
+  &devsysctl,
   &xdp,
   &ethtool,
   &keys,

@@ -18,6 +18,7 @@ $(call add-objs,tiles/fd_benchs,fd_fddev)
 # fddev configure stages
 $(call add-objs,configure/netns,fd_fddev)
 $(call add-objs,configure/keys,fd_fddev)
+$(call add-objs,configure/devsysctl,fd_fddev)
 $(call add-objs,configure/kill,fd_fddev)
 $(call add-objs,configure/genesis,fd_fddev)
 $(call add-objs,configure/blockstore,fd_fddev)

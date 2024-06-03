@@ -1,6 +1,6 @@
-#include "configure.h"
+#include "../../fdctl/configure/configure.h"
 
-#define NAME "sysctl"
+#define NAME "devsysctl"
 
 #include <stdio.h>
 #include <linux/capability.h>
@@ -24,38 +24,18 @@ typedef struct {
 
 static const sysctl_param_t params[] = {
   {
-    "/proc/sys/vm/max_map_count",
-    1000000,
+    "/proc/sys/net/ipv4/conf/lo/rp_filter",
+    2,
     ENFORCE_MINIMUM,
   },
   {
-    "/proc/sys/fs/file-max",
-    CONFIGURE_NR_OPEN_FILES,
-    ENFORCE_MINIMUM,
-  },
-  {
-    "/proc/sys/fs/nr_open",
-    CONFIGURE_NR_OPEN_FILES,
-    ENFORCE_MINIMUM,
-  },
-  {
-    "/proc/sys/net/core/bpf_jit_enable",
+    "/proc/sys/net/ipv4/conf/lo/accept_local",
     1,
-    WARN_MINIMUM,
+    ENFORCE_MINIMUM,
   },
-  {
-    "/proc/sys/kernel/numa_balancing",
-    0,
-    WARN_EXACT,
-  }
 };
 
 static const char * ERR_MSG = "system might not support configuring sysctl,";
-
-
-/* Some of these sysctl limits are needed for the Agave client, not
-   Firedancer.  We set them on their behalf to make configuration easier
-   for users. */
 
 static void
 init( config_t * const config ) {
@@ -103,7 +83,7 @@ check( config_t * const config ) {
   CONFIGURE_OK();
 }
 
-configure_stage_t sysctl = {
+configure_stage_t devsysctl = {
   .name            = NAME,
   .always_recreate = 0,
   .enabled         = NULL,
