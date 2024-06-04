@@ -899,8 +899,28 @@ fd_sbpf_program_load_test_run( fd_exec_test_elf_loader_ctx_t const * input,
     return 0UL;
   }
   
-  ulong elf_sz = input->elf.data->size;
-  void const * _bin = input->elf.data->bytes;
+  ulong elf_sz = input->elf_sz;
+  void const * _bin;
+
+  /* elf_sz will be passed as arguments to elf loader functions.
+     pb decoder allocates memory for elf.data based on its actual size,
+     not elf_sz !. 
+     If elf_sz is larger than the size of actual elf data, this may result
+     in out-of-bounds accesses which will upset ASAN (however intentional).
+     So in this case we just copy the data into a memory region of elf_sz bytes 
+     
+     ! The decoupling of elf_sz and the actual binary size is intentional to test
+      underflow/overflow behavior */
+  if ( elf_sz > input->elf.data->size ){
+    void * tmp = fd_valloc_malloc( valloc, 1UL, elf_sz );
+    if ( FD_UNLIKELY( !tmp ) ){
+      return 0UL;
+    }
+    fd_memcpy( tmp, input->elf.data->bytes, input->elf.data->size );
+    _bin = tmp;
+  } else {
+    _bin = input->elf.data->bytes;
+  }
 
   // Allocate space for captured effects
   ulong output_end = (ulong)output_buf + output_bufsz;

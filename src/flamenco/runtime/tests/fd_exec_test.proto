@@ -124,6 +124,7 @@ message ELFBinary {
 message ELFLoaderCtx {
     ELFBinary elf = 1;
     FeatureSet features = 2;
+    uint64 elf_sz = 3;
 }
 
 // Captures the results of a elf binary load.
