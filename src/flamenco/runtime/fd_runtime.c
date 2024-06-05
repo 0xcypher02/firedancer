@@ -696,7 +696,6 @@ fd_runtime_prepare_txns_phase1( fd_exec_slot_ctx_t * slot_ctx,
   for (ulong txn_idx = 0; txn_idx < txn_cnt; txn_idx++) {
     fd_txn_p_t * txn = &txns[txn_idx];
 
-    // FD_LOG_DEBUG(("preparing txn - slot: %lu, txn_idx: %lu, sig: %64J", slot_ctx->slot_bank.slot, txn_idx, (uchar *)raw_txn->raw + txn->signature_off));
 
     task_info[txn_idx].txn_ctx = fd_valloc_malloc( slot_ctx->valloc, FD_EXEC_TXN_CTX_ALIGN, FD_EXEC_TXN_CTX_FOOTPRINT );
     fd_exec_txn_ctx_t * txn_ctx = task_info[txn_idx].txn_ctx;
@@ -704,6 +703,9 @@ fd_runtime_prepare_txns_phase1( fd_exec_slot_ctx_t * slot_ctx,
     task_info[txn_idx].txn = txn;
     fd_txn_t const * txn_descriptor = (fd_txn_t const *) txn->_;
     fd_rawtxn_b_t raw_txn = {.raw = txn->payload, .txn_sz = (ushort)txn->payload_sz };
+    
+    // FD_LOG_INFO(("preparing txn - slot: %lu, txn_idx: %lu, fee_payer: %32J, sig: %64J", slot_ctx->slot_bank.slot, txn_idx, (uchar*)raw_txn.raw + txn_descriptor->acct_addr_off, (uchar *)raw_txn.raw + txn_descriptor->signature_off));
+
     int res = fd_execute_txn_prepare_phase1(slot_ctx, txn_ctx, txn_descriptor, &raw_txn);
     if( res != 0 ) {
       txn->flags = 0;

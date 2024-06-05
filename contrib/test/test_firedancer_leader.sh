@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-cd test-ledger/
+cd ../test-ledger/
 
 cleanup() {
   sudo killall -9 -q fddev || true
@@ -43,6 +43,7 @@ echo "
         entrypoints = [\"$PRIMARY_IP\"]
         peer_ports = [8001]
         gossip_listen_port = 8700
+    
     [tiles.repair]
         repair_intake_listen_port = 8701
         repair_serve_listen_port = 8702
@@ -50,7 +51,7 @@ echo "
         snapshot = \"$FULL_SNAPSHOT\"
         tpool_thread_count = 8
         funk_sz_gb = 8
-        funk_rec_max = 100000
+        funk_rec_max = 10000000
         funk_txn_max = 1024
 [log]
     path = \"fddev.log\"

@@ -8,12 +8,13 @@ FD_DIR="$SCRIPT_DIR/../.."
 
 # create temporary files in the user's home directory because it's likely to be on a large disk
 TMPDIR=$(mktemp --directory --tmpdir="$HOME" tmp-test-tvu-testnet.XXXXXX)
+TMPDIR=/home/lheeger/tmp-test-tvu-testnet.0byVMB/
 cd $TMPDIR
 
 cleanup() {
   sudo killall fddev || true
   fddev configure fini all >/dev/null 2>&1 || true
-  rm -rf "$TMPDIR"
+  # rm -rf "$TMPDIR"
 }
 
 download_snapshot() {
@@ -22,7 +23,7 @@ download_snapshot() {
   local s
   for _ in $(seq 1 $num_tries); do
     s=$(curl -s --max-redirs 0 $url)
-    if ! wget -q --trust-server-names $url; then
+    if ! wget -nc -q --trust-server-names $url; then
       sleep 1
     else
       echo "${s:1}"
@@ -99,7 +100,7 @@ if [ -n "${JOB_URL-}" ]; then
   echo "$JOB_URL" > github_job_url.txt
 fi
 
-fddev --log-path $(readlink -f fddev.log) --config $(readlink -f fddev.toml) --no-sandbox --no-clone --no-solana-labs &
+sudo perf record -F999 -g -e cycles -e stalled-cycles-backend -e stalled-cycles-frontend -e cache-misses $FD_DIR/build/native/gcc/bin/fddev --log-path $(readlink -f fddev.log) --config $(readlink -f fddev.toml) --no-sandbox --no-clone --no-solana-labs &
 
 CAUGHT_UP=0
 set +x

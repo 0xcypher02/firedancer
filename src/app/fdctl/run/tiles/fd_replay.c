@@ -215,10 +215,6 @@ during_frag( void * _ctx,
              int *  opt_filter  FD_PARAM_UNUSED ) {
   fd_replay_tile_ctx_t * ctx = (fd_replay_tile_ctx_t *)_ctx;
 
-  if( FD_UNLIKELY( chunk<ctx->store_in_chunk0 || chunk>ctx->store_in_wmark || sz>MAX_TXNS_PER_REPLAY ) ) {
-    FD_LOG_ERR(( "chunk %lu %lu corrupt, not in range [%lu,%lu]", chunk, sz, ctx->store_in_chunk0, ctx->store_in_wmark ));
-  }
-
   void * dst_poh = fd_chunk_to_laddr( ctx->poh_out_mem, ctx->poh_out_chunk );
 
   /* Incoming packet from store tile. Format:
@@ -522,8 +518,8 @@ after_frag( void *             _ctx,
     }
     /* Publish mblk to POH. */
 
-    if( ( ctx->flags & REPLAY_FLAG_MICROBLOCK ) || ( ctx->flags & REPLAY_FLAG_PACKED_MICROBLOCK ) 
-        || ( ctx->flags == REPLAY_FLAG_FINISHED_BLOCK ) ) {
+    if( ctx->poh_init_done == 1 && ( ( ctx->flags & REPLAY_FLAG_MICROBLOCK ) || ( ctx->flags & REPLAY_FLAG_PACKED_MICROBLOCK ) 
+        || ( ctx->flags == REPLAY_FLAG_FINISHED_BLOCK ) ) ) {
       FD_LOG_INFO(( "publishing mblk to poh - slot: %lu, parent_slot: %lu", ctx->curr_slot, ctx->parent_slot ));
       ulong tspub = fd_frag_meta_ts_comp( fd_tickcount() );
       ulong sig = fd_disco_replay_sig( ctx->curr_slot, ctx->flags );
@@ -854,7 +850,7 @@ unprivileged_init( fd_topo_t *      topo,
   ctx->pack_in_wmark  = fd_dcache_compact_wmark( ctx->pack_in_mem, pack_in_link->dcache, pack_in_link->mtu );
   
   fd_topo_link_t * poh_out_link = &topo->links[ tile->out_link_id[ POH_OUT_IDX ] ];
-ctx->poh_out_mcache = poh_out_link->mcache;
+  ctx->poh_out_mcache = poh_out_link->mcache;
   ctx->poh_out_sync   = fd_mcache_seq_laddr( ctx->poh_out_mcache );
   ctx->poh_out_depth  = fd_mcache_depth( ctx->poh_out_mcache );
   ctx->poh_out_seq    = fd_mcache_seq_query( ctx->poh_out_sync );

@@ -5,8 +5,8 @@ IFS=$'\n\t'
 PRIMARY_IP=$(ip -o -4 addr show scope global | awk '{ print $4 }' | cut -d/ -f1)
 RPC_URL="http://$PRIMARY_IP:8899/"
 
-mkdir test-ledger
-cd test-ledger
+mkdir ../test-ledger
+cd ../test-ledger
 
 echo "Creating mint and stake authority keys..."
 solana-keygen new --no-bip39-passphrase --force -o faucet-keypair.json > /dev/null
@@ -29,7 +29,7 @@ GENESIS_OUTPUT=$(solana-genesis \
     --bootstrap-stake-authorized-pubkey test-ledger/validator-keypair.json \
     --bootstrap-validator-lamports 11000000000000000 \
     --bootstrap-validator-stake-lamports 10000000000000000 \
-    --faucet-pubkey test-ledger/faucet-keypair.json --faucet-lamports 10000000000000000 \
+    --faucet-pubkey test-ledger/faucet-keypair.json --faucet-lamports 1000000000000000000 \
     --slots-per-epoch 200 \
     --hashes-per-tick 128 \
     --ticks-per-slot 64)
@@ -59,6 +59,8 @@ RUST_LOG=debug solana-validator \
     --rpc-port 8899 \
     --gossip-port 8001 \
     --gossip-host $PRIMARY_IP \
+    --dynamic-port-range 8100-10000 \
     --full-rpc-api \
     --allow-private-addr \
+    --rpc-faucet-address 127.0.0.1:9900 \
     --log test-ledger/validator.log

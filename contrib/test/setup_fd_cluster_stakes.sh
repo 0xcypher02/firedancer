@@ -2,12 +2,11 @@
 set -euxo pipefail
 IFS=$'\n\t'
 
-cd test-ledger
+cd ../test-ledger
 
 PRIMARY_IP=$(ip -o -4 addr show scope global | awk '{ print $4 }' | cut -d/ -f1)
 RPC_URL="http://$PRIMARY_IP:8899/"
 RPC_URL="http://localhost:8899/"
-
 
 solana-keygen new --no-bip39-passphrase --silent --outfile fd-identity-keypair.json
 solana-keygen new --no-bip39-passphrase --silent --outfile fd-stake-keypair.json

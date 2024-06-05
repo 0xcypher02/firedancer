@@ -230,8 +230,6 @@ gossip_deliver_fun( fd_crds_data_t * data, void * arg ) {
     memcpy( vote_txn_msg, gossip_vote->txn.raw, vote_txn_sz );
     vote_txn_msg += vote_txn_sz;
 
-    FD_LOG_WARNING(("gossip_vote!"));
-
     ulong sig = 1UL; 
     fd_mcache_publish( ctx->pack_out_mcache, ctx->pack_out_depth, ctx->pack_out_seq, sig, ctx->pack_out_chunk,
       vote_txn_sz, 0UL, 0, 0 );
@@ -545,7 +543,7 @@ unprivileged_init( fd_topo_t *      topo,
   ctx->tpu_vote_my_addr.port = fd_ushort_bswap( tile->gossip.tpu_vote_port );
 
   fd_gossip_update_tvu_addr( ctx->gossip, &ctx->tvu_my_addr, &ctx->tvu_my_fwd_addr );
-  fd_gossip_update_tpu_addr( ctx->gossip, &ctx->tpu_my_addr );
+  fd_gossip_update_tpu_addr( ctx->gossip, &ctx->tpu_my_addr, &ctx->tpu_my_addr );
   fd_gossip_update_tpu_vote_addr( ctx->gossip, &ctx->tpu_vote_my_addr );
   fd_gossip_settime( ctx->gossip, fd_log_wallclock() );
   fd_gossip_start( ctx->gossip );

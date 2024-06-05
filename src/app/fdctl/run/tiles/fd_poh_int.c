@@ -48,7 +48,7 @@ typedef struct {
 
   /* These are temporarily set in during_frag so they can be used in
      after_frag once the frag has been validated as not overrun. */
-  uchar _txns[ USHORT_MAX ];
+  uchar _txns[ 1024* USHORT_MAX ];
   fd_microblock_trailer_t * _microblock_trailer;
 
   int is_initialized;
@@ -335,6 +335,7 @@ during_frag( void * _ctx,
     uchar * src = (uchar *)fd_chunk_to_laddr( ctx->bank_in[ in_idx ].mem, chunk );
 
     ulong raw_sz = (sz * sizeof(fd_txn_p_t))+sizeof(fd_microblock_trailer_t);
+    FD_TEST( raw_sz<=1024*USHORT_MAX );
     fd_memcpy( ctx->_txns, src, raw_sz-sizeof(fd_microblock_trailer_t) );
     ctx->_microblock_trailer = (fd_microblock_trailer_t*)(src+raw_sz-sizeof(fd_microblock_trailer_t));
   }

@@ -355,7 +355,7 @@ fd_topo_firedancer( config_t * _config ) {
       tile->gossip.tvu_port = config->tiles.shred.shred_listen_port;
       tile->gossip.tvu_fwd_port = config->tiles.shred.shred_listen_port + 6;
       tile->gossip.expected_shred_version = config->consensus.expected_shred_version;
-
+      tile->gossip.tpu_port = config->tiles.quic.regular_transaction_listen_port;
       tile->gossip.tpu_vote_port = config->tiles.quic.regular_transaction_listen_port;
       FD_TEST( config->tiles.gossip.entrypoints_cnt == config->tiles.gossip.peer_ports_cnt );
       tile->gossip.entrypoints_cnt = config->tiles.gossip.entrypoints_cnt;

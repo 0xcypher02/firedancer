@@ -316,7 +316,6 @@ after_frag( void *             _ctx,
       FD_MCNT_INC( QUIC_TILE, NON_QUIC_PACKET_TOO_LARGE, 1UL );
       return;
     }
-
     legacy_stream_notify( ctx, ctx->buffer+network_hdr_sz, (uint)(*opt_sz - network_hdr_sz) );
   }
 }
