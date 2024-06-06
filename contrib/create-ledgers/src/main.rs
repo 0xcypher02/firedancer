@@ -1,11 +1,9 @@
 use {
     solana_sdk::{
-        // bpf_loader,
         bpf_loader_upgradeable,
         bpf_loader_upgradeable::{
             UpgradeableLoaderState,
         },
-        // loader_upgradeable_instruction::UpgradeableLoaderInstruction,
         pubkey::{
             Pubkey
         },
@@ -86,7 +84,7 @@ fn main() {
     let client = RpcClient::new_with_commitment(validator_url, CommitmentConfig::confirmed());
     let loader_id = bpf_loader_upgradeable::id();
 
-    let program_path = "/home/kbhargava/repos/sbf/helloworld.so";
+    let program_path = "helloworld.so";
     match client.get_slot() {
         Ok(slot) => println!("Current slot: {}", slot),
         Err(e) => eprintln!("Error retrieving slot: {}", e),
