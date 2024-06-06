@@ -4,16 +4,9 @@ use {
         bpf_loader_upgradeable::{
             UpgradeableLoaderState,
         },
-        pubkey::{
-            Pubkey
-        },
-        account::{
-            AccountSharedData,
-            WritableAccount
-        },
+
         signature::{Keypair, read_keypair_file, Signer},
         transaction::Transaction,
-        rent::Rent,
         commitment_config::CommitmentConfig,
         feature_set::FeatureSet,
         message::Message,
@@ -39,18 +32,6 @@ use {
     std::{fs::File, io::Read, sync::Arc},
 };
 
-
-fn load_program_account_from_elf(loader_id: &Pubkey, path: &str) -> AccountSharedData {
-    let mut file = File::open(path).expect("file open failed");
-    let mut elf = Vec::new();
-    file.read_to_end(&mut elf).unwrap();
-    let rent = Rent::default();
-    let mut program_account =
-        AccountSharedData::new(rent.minimum_balance(elf.len()), 0, loader_id);
-    program_account.set_data(elf);
-    program_account.set_executable(true);
-    program_account
-}
 
 fn read_and_verify_elf(program_location: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut file = File::open(program_location)
@@ -82,7 +63,6 @@ fn read_and_verify_elf(program_location: &str) -> Result<Vec<u8>, Box<dyn std::e
 fn main() {
     let validator_url = "http://localhost:8899";
     let client = RpcClient::new_with_commitment(validator_url, CommitmentConfig::confirmed());
-    let loader_id = bpf_loader_upgradeable::id();
 
     let program_path = "helloworld.so";
     match client.get_slot() {
@@ -94,7 +74,6 @@ fn main() {
     let payer = read_keypair_file(payer_keypair_path).unwrap();
 
     let run_account = Keypair::new();
-    let program_account = load_program_account_from_elf(&loader_id, program_path);
     
     let program_keypair = Keypair::new();
 
@@ -139,19 +118,15 @@ fn main() {
     println!("Chunk size: {}", chunk_size);
     // let chunks = program_data.chunks(chunk_size);
     
-    let mut offset = 0;
-
     for (chunk, i) in program_data.chunks(chunk_size).zip(0..) {
         let message = create_msg((i * chunk_size) as u32, chunk.to_vec());
 
         let mut write_transaction = Transaction::new_unsigned(
             message,
         );
-        write_transaction.try_sign(&[&payer], blockhash);
+        let _ = write_transaction.try_sign(&[&payer], blockhash);
     
-        let write_result = client.send_and_confirm_transaction(&write_transaction);
-        offset += chunk.len() as u32;
-        println!("{} bytes written", offset);
+        let _ = client.send_and_confirm_transaction(&write_transaction);
     }
 
     let final_instruction = bpf_loader_upgradeable::deploy_with_max_program_len(
@@ -174,4 +149,6 @@ fn main() {
 
     println!("Final program deployed: {}", program_keypair.pubkey());
     println!("Transaction signature: {}", final_result.unwrap());
+
+    
 }
