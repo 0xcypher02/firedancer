@@ -4,12 +4,13 @@ use {
         bpf_loader_upgradeable::{
             UpgradeableLoaderState,
         },
-
+        system_instruction,
         signature::{Keypair, read_keypair_file, Signer},
         transaction::Transaction,
         commitment_config::CommitmentConfig,
         feature_set::FeatureSet,
         message::Message,
+        instruction::{Instruction, AccountMeta},
     },
     solana_client::{
         rpc_client::RpcClient,
@@ -29,7 +30,7 @@ use {
         elf::Executable,
         verifier::RequisiteVerifier
     },
-    std::{fs::File, io::Read, sync::Arc},
+    std::{fs::File, io::Read, sync::Arc, thread, time::Duration},
 };
 
 
@@ -73,7 +74,7 @@ fn main() {
     let payer_keypair_path = "/home/kbhargava/.config/solana/id.json";
     let payer = read_keypair_file(payer_keypair_path).unwrap();
 
-    let run_account = Keypair::new();
+    let buffer_account = Keypair::new();
     
     let program_keypair = Keypair::new();
 
@@ -84,7 +85,7 @@ fn main() {
 
     let create_program_account_instruction = bpf_loader_upgradeable::create_buffer(
         &payer.pubkey(),
-        &run_account.pubkey(),
+        &buffer_account.pubkey(),
         &payer.pubkey(),
         min_rent_exempt_program_data_balance,
         program_data.len(),
@@ -93,19 +94,19 @@ fn main() {
     let buffer_transaction = Transaction::new_signed_with_payer(
         &create_program_account_instruction.unwrap(),
         Some(&payer.pubkey()),
-        &[&payer, &run_account],
+        &[&payer, &buffer_account],
         client.get_latest_blockhash().unwrap(),
     );
 
     let result = client.send_and_confirm_transaction(&buffer_transaction);
-    println!("New account created with pubkey: {}", run_account.pubkey());
+    println!("New account created with pubkey: {}", buffer_account.pubkey());
     println!("Transaction signature: {}", result.unwrap());
 
     let blockhash = client.get_latest_blockhash().unwrap();
 
     let create_msg = |offset: u32, bytes: Vec<u8>| {
         let write_instruction = bpf_loader_upgradeable::write(
-            &run_account.pubkey(),
+            &buffer_account.pubkey(),
             &payer.pubkey(),
             offset,
             bytes,
@@ -132,7 +133,7 @@ fn main() {
     let final_instruction = bpf_loader_upgradeable::deploy_with_max_program_len(
         &payer.pubkey(),
         &program_keypair.pubkey(),
-        &run_account.pubkey(),
+        &buffer_account.pubkey(),
         &payer.pubkey(),
         client.get_minimum_balance_for_rent_exemption(
             UpgradeableLoaderState::size_of_program(),
@@ -150,5 +151,44 @@ fn main() {
     println!("Final program deployed: {}", program_keypair.pubkey());
     println!("Transaction signature: {}", final_result.unwrap());
 
+    thread::sleep(Duration::from_secs(10));
+
+    let run_account = Keypair::new();
+    let account_data = vec![0u8; 4];
     
+    let open_account_instruction = system_instruction::create_account(
+        &payer.pubkey(),
+        &run_account.pubkey(),
+        client.get_minimum_balance_for_rent_exemption(account_data.len()).unwrap(),
+        account_data.len() as u64,
+        &program_keypair.pubkey(),
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[open_account_instruction],
+        Some(&payer.pubkey()),
+        &[&payer, &run_account],
+        client.get_latest_blockhash().unwrap(),
+    );
+    let result = client.send_and_confirm_transaction(&transaction);
+    println!("Transaction Result: {:?}", result.unwrap());
+
+    let account_metas = vec![
+        AccountMeta::new(run_account.pubkey(), false),
+    ];
+    let instruction = Instruction::new_with_bytes(
+        program_keypair.pubkey(),
+        &account_data,
+        account_metas,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer],
+        client.get_latest_blockhash().unwrap(),
+    );
+
+    let result = client.send_and_confirm_transaction(&transaction);
+    println!("Transaction Result: {:?}", result.unwrap());
 }
