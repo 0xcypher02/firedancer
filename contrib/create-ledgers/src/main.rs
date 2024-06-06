@@ -11,17 +11,10 @@ use {
         },
         account::{
             AccountSharedData,
-            WritableAccount,
-            ReadableAccount
-        },
-        instruction::{
-            AccountMeta,
-            InstructionError
+            WritableAccount
         },
         signature::{Keypair, read_keypair_file, Signer},
-        system_instruction,
         transaction::Transaction,
-        transaction_context::{IndexOfAccount},
         rent::Rent,
         commitment_config::CommitmentConfig,
         feature_set::FeatureSet,
@@ -35,7 +28,6 @@ use {
     },
     solana_bpf_loader_program::{
         self,
-        test_utils,
         syscalls::create_program_runtime_environment_v1
     },
     solana_program_runtime::{
@@ -43,12 +35,10 @@ use {
         compute_budget::ComputeBudget
     },
     solana_rbpf::{
-        declare_builtin_function,
-        memory_region::{MemoryMapping},
         elf::Executable,
         verifier::RequisiteVerifier
     },
-    std::{fs::File, io::Read, error::Error, sync::Arc},
+    std::{fs::File, io::Read, sync::Arc},
 };
 
 
@@ -97,8 +87,6 @@ fn main() {
     let loader_id = bpf_loader_upgradeable::id();
 
     let program_path = "/home/kbhargava/repos/sbf/helloworld.so";
-    let program_keypair_path = "/home/kbhargava/repos/sbf/helloworld-keypair.json";
-
     match client.get_slot() {
         Ok(slot) => println!("Current slot: {}", slot),
         Err(e) => eprintln!("Error retrieving slot: {}", e),
@@ -110,7 +98,7 @@ fn main() {
     let run_account = Keypair::new();
     let program_account = load_program_account_from_elf(&loader_id, program_path);
     
-    let program_keypair = read_keypair_file(program_keypair_path).unwrap();
+    let program_keypair = Keypair::new();
 
     let program_data = read_and_verify_elf(program_path).unwrap();
     let min_rent_exempt_program_data_balance = client.get_minimum_balance_for_rent_exemption(
@@ -168,46 +156,22 @@ fn main() {
         println!("{} bytes written", offset);
     }
 
-    let mut final_instructions = bpf_loader_upgradeable::upgrade(
+    let final_instruction = bpf_loader_upgradeable::deploy_with_max_program_len(
+        &payer.pubkey(),
         &program_keypair.pubkey(),
         &run_account.pubkey(),
         &payer.pubkey(),
-        &payer.pubkey(),
-    );
-
-    let final_message = Message::new_with_blockhash(
-        &[final_instructions],
-        Some(&payer.pubkey()),
-        &blockhash,
-    );
-
-    let create_executable_instruction = system_instruction::create_account(
-        &payer.pubkey(),
-        &program_keypair.pubkey(),
-        min_rent_exempt_program_data_balance,
-        program_data.len() as u64,
-        &loader_id,
-    );
-
-    let initialize_executable_instruction = system_instruction::assign(
-        &program_keypair.pubkey(),
-        &loader_id,
-    );
-
-    let mut executable_transaction = Transaction::new_with_payer(
-        &[create_executable_instruction, initialize_executable_instruction],
-        Some(&payer.pubkey()),
-    );
-
-    executable_transaction.sign(&[&payer, &program_keypair], blockhash);
-    let result = client.send_and_confirm_transaction(&executable_transaction);
-    println!("Created Account: {}", program_keypair.pubkey());
-
-
+        client.get_minimum_balance_for_rent_exemption(
+            UpgradeableLoaderState::size_of_program(),
+        ).unwrap(),
+        program_data.len(),
+    ).unwrap();
+    let final_message = Message::new_with_blockhash(&final_instruction, Some(&payer.pubkey()), &blockhash);
     let mut final_tx = Transaction::new_unsigned(final_message.clone());
     let blockhash = client.get_latest_blockhash().unwrap();
-    let mut signers: Vec<&dyn Signer> = vec![&payer];
+    let signers: Vec<&dyn Signer> = vec![&payer, &program_keypair];
     let result = final_tx.try_sign(&signers, blockhash);
+    println!("Final transaction signed: {}", result.is_ok());
     let final_result = client.send_and_confirm_transaction(&final_tx);
 
     println!("Final program deployed: {}", program_keypair.pubkey());
