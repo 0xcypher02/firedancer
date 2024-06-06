@@ -836,7 +836,6 @@ fd_runtime_prepare_txns_phase2_tpool( fd_exec_slot_ctx_t * slot_ctx,
 
         if ( fd_hash_hash_age_pair_t_map_find( slot_ctx->slot_bank.block_hash_queue.ages_pool, slot_ctx->slot_bank.block_hash_queue.ages_root, &key ) == NULL ) {
           task_info[ txn_idx ].txn->flags = 0;
-          FD_LOG_WARNING(("x %32J", blockhash->uc));
           res |= FD_RUNTIME_TXN_ERR_BLOCKHASH_NOT_FOUND;
           continue;
         }
@@ -850,7 +849,7 @@ fd_runtime_prepare_txns_phase2_tpool( fd_exec_slot_ctx_t * slot_ctx,
       }
 
       fee_payer_idxs[fee_payer_accs_cnt] = txn_idx;
-      fee_payer_accs[fee_payer_accs_cnt] = fd_borrowed_account_init( &collect_fee_task_infos[txn_idx].fee_payer_rec );
+      fee_payer_accs[fee_payer_accs_cnt] = fd_borrowed_account_init( &collect_fee_task_infos[fee_payer_accs_cnt].fee_payer_rec );
       collect_fee_task_infos[fee_payer_accs_cnt].txn_ctx = txn_ctx;
       collect_fee_task_infos[fee_payer_accs_cnt].result = (task_info[txn_idx].txn->flags==0) ? -1 : 0;
       fee_payer_accs_cnt++;
